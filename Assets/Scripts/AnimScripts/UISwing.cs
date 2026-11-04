@@ -1,7 +1,7 @@
 using UnityEngine;
 using DG.Tweening;
 
-public class UISwing : MonoBehaviour
+public class UISwing : MonoBehaviour, IPetAnim
 {
     [SerializeField] private RectTransform target;
     [SerializeField] private float maxAngle = 15f;         // 左右各摆角度
@@ -11,6 +11,9 @@ public class UISwing : MonoBehaviour
     private Tween delayTween;
     private Vector3 originalEuler;
     private bool hasPlayed;
+
+    /// <summary>说话时按音频时长播放（PetBase 统一调用）</summary>
+    public void PlayFor(float duration) => PlaySwing(duration);
 
     public void PlaySwing(float totalDuration)
     {

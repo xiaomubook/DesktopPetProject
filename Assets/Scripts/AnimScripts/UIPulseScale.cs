@@ -1,7 +1,7 @@
 using UnityEngine;
 using DG.Tweening;
 
-public class UIPulseScale : MonoBehaviour
+public class UIPulseScale : MonoBehaviour, IPetAnim
 {
     [SerializeField] private RectTransform target;
     [SerializeField] private float minScaleY = 0.5f;      // Y轴最小缩放比例
@@ -11,6 +11,9 @@ public class UIPulseScale : MonoBehaviour
     private Tween delayTween;
     private Vector3 originalScale;
     private bool hasPlayed;
+
+    /// <summary>说话时按音频时长播放（PetBase 统一调用）</summary>
+    public void PlayFor(float duration) => PlayPulse(duration);
 
     /// <summary>播放脉冲缩放，totalDuration 秒后停止并恢复原大小</summary>
     public void PlayPulse(float totalDuration)

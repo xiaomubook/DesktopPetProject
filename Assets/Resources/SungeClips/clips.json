@@ -1,0 +1,170 @@
+[
+  {
+    "id": 1,
+    "label": "你说太对了",
+    "file": "01.wav",
+    "duration": 0.88
+  },
+  {
+    "id": 2,
+    "label": "对你说的太对了",
+    "file": "02.wav",
+    "duration": 0.84
+  },
+  {
+    "id": 3,
+    "label": "对你说的太对了对吧",
+    "file": "03.wav",
+    "duration": 2.58
+  },
+  {
+    "id": 4,
+    "label": "你说的太对了",
+    "file": "04.wav",
+    "duration": 1.04
+  },
+  {
+    "id": 5,
+    "label": "你讲的太对了",
+    "file": "05.wav",
+    "duration": 1.08
+  },
+  {
+    "id": 6,
+    "label": "哈哈你说的太对了",
+    "file": "06.wav",
+    "duration": 2.23
+  },
+  {
+    "id": 7,
+    "label": "哎你说太对了",
+    "file": "07.wav",
+    "duration": 1.64
+  },
+  {
+    "id": 8,
+    "label": "对对是太对了对吧",
+    "file": "08.wav",
+    "duration": 2.92
+  },
+  {
+    "id": 9,
+    "label": "你讲的太对了",
+    "file": "09.wav",
+    "duration": 1.48
+  },
+  {
+    "id": 10,
+    "label": "你说的太对了",
+    "file": "10.wav",
+    "duration": 1.23
+  },
+  {
+    "id": 11,
+    "label": "这这太对了",
+    "file": "11.wav",
+    "duration": 0.79
+  },
+  {
+    "id": 12,
+    "label": "你说的太对了",
+    "file": "12.wav",
+    "duration": 1.08
+  },
+  {
+    "id": 13,
+    "label": "太对了",
+    "file": "13.wav",
+    "duration": 0.58
+  },
+  {
+    "id": 14,
+    "label": "你说太对了",
+    "file": "14.wav",
+    "duration": 1.0
+  },
+  {
+    "id": 15,
+    "label": "你讲的太对了",
+    "file": "15.wav",
+    "duration": 1.08
+  },
+  {
+    "id": 16,
+    "label": "你说的太对了",
+    "file": "16.wav",
+    "duration": 2.0
+  },
+  {
+    "id": 17,
+    "label": "对你讲太对了",
+    "file": "17.wav",
+    "duration": 2.32
+  },
+  {
+    "id": 18,
+    "label": "你说的太对了",
+    "file": "18.wav",
+    "duration": 1.44
+  },
+  {
+    "id": 19,
+    "label": "就就跟这个你刚才讲的太对了",
+    "file": "19.wav",
+    "duration": 2.21
+  },
+  {
+    "id": 20,
+    "label": "对你说的太对了哈",
+    "file": "20.wav",
+    "duration": 2.33
+  },
+  {
+    "id": 21,
+    "label": "你说的太对了对吧",
+    "file": "21.wav",
+    "duration": 2.12
+  },
+  {
+    "id": 22,
+    "label": "现在啊人生对你说的太对了",
+    "file": "22.wav",
+    "duration": 3.12
+  },
+  {
+    "id": 23,
+    "label": "哎你说的太对了",
+    "file": "23.wav",
+    "duration": 1.9
+  },
+  {
+    "id": 24,
+    "label": "你说的太对了",
+    "file": "24.wav",
+    "duration": 1.68
+  },
+  {
+    "id": 25,
+    "label": "你说的太对了",
+    "file": "25.wav",
+    "duration": 1.04
+  },
+  {
+    "id": 26,
+    "label": "哎你讲的太对了",
+    "file": "26.wav",
+    "duration": 1.36
+  },
+  {
+    "id": 27,
+    "label": "对你说的太对了",
+    "file": "27.wav",
+    "duration": 1.84
+  },
+  {
+    "id": 28,
+    "label": "对你说的太对了对吧",
+    "file": "28.wav",
+    "duration": 2.3
+  }
+]
