@@ -46,13 +46,5 @@ public class UIPulseScale : MonoBehaviour
     }
 
     private void OnDestroy() => StopPulse();
-
-    private void Update()
-    {
-        if (Input.GetKeyDown(KeyCode.Space))
-        {
-            PlayPulse(3f);
-        }
-
-    }
+    
 }
