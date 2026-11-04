@@ -49,14 +49,5 @@ public class UISwing : MonoBehaviour
     }
 
     private void OnDestroy() => StopSwing();
-
-
-    private void Update()
-    {
-        if (Input.GetKeyDown(KeyCode.Space))
-        {
-            PlaySwing(5f);
-        }
-
-    }
+    
 }
