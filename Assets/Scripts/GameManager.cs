@@ -1,26 +1,29 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>键盘/全局输入。</summary>
 public class GameManager : MonoBehaviour
 {
+    [Header("宠物部件（宠物图片，脚本会自动往上找到宠物本体）")]
     [SerializeField] private Transform fenggePet;
     [SerializeField] private Transform shaolanPet;
     [SerializeField] private Transform sungePet;
-    // Start is called before the first frame update
-    void Start()
-    {
-        
-    }
 
-    // Update is called once per frame
-    void Update()
+    [Header("空格触发的待机动画时长")]
+    [SerializeField] private float spaceAnimDuration = 5f;
+
+    private void Update()
     {
         if (Input.GetKeyDown(KeyCode.Space))
         {
-            fenggePet.GetComponent<UIPulseScale>().PlayPulse(5);
-            shaolanPet.GetComponent<UIPulseScale>().PlayPulse(5);
-            sungePet.GetComponent<UISwing>().PlaySwing(5f);
+            PlayIdleAnim(fenggePet);
+            PlayIdleAnim(shaolanPet);
+            PlayIdleAnim(sungePet);
         }
+    }
+
+    private void PlayIdleAnim(Transform petPart)
+    {
+        if (petPart == null) return;
+        petPart.GetComponentInParent<PetBase>()?.PlayAnim(spaceAnimDuration);
     }
 }

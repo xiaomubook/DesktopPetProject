@@ -1,7 +1,2 @@
-using UnityEngine;
-
-/// <summary>Fengge：点击时从自己的语音库里随机播一条</summary>
-public class Pet_Fengge : PetBase
-{
-    public void OnPetClicked() => HandleClicked();
-}
+/// <summary>Fengge。行为全部由基类 + 数据决定，这里只留作角色标识和将来的特化入口。</summary>
+public sealed class Pet_Fengge : PetBase { }

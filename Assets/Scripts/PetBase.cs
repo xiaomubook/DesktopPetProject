@@ -1,175 +1,155 @@
-using System;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 
-    public abstract class PetBase: MonoBehaviour
+/// <summary>
+/// 宠物通用行为：解析自身依赖 → 响应点击 → 从自己的语音库里随机挑一句播放，
+/// 并让音频、动画、气泡三者以同一时长同步。
+///
+/// 场景里每只宠物各自持有一份 PetSpeechLibrary / PetAudioPlayer / PetSpeechBubble，
+/// 数据互不共享。行为差异交给数据（语音库、动画组件），不靠子类分叉。
+/// </summary>
+public abstract class PetBase : MonoBehaviour
+{
+    [Header("依赖（留空则自动在本对象层级下查找）")]
+    [SerializeField] private PetSpeechLibrary library;
+    [SerializeField] private PetAudioPlayer audioPlayer;
+    [SerializeField] private PetSpeechBubble speechBubble;
+    [SerializeField] private Button clickButton;
+
+    [Header("调试")]
+    [Tooltip("勾选后在 Console 打印每次播放的细节")]
+    [SerializeField] private bool verboseLog;
+
+    private IPetAnim _anim;
+
+    /// <summary>音频是否还在播；播放期间的点击会被忽略</summary>
+    public bool IsSpeaking { get; private set; }
+
+    protected virtual void Awake()
     {
-        [SerializeField] protected PetAudioPlayer audioPlayer;
-        [SerializeField] protected PetSpeechBubble speechBubble;
-        [SerializeField] protected PetSpeechLibrary library; // 可空，空则用单例
-        [SerializeField] protected Button clickButton;      // 宠物本体上的按钮，空则自动查找
-
-        public bool IsSpeaking { get; protected set; }
-
-        private int _lastSpokenId = -1;   // 上一次播过的 id，用来避免随机时连续重复
-        private IPetAnim _anim;           // 宠物本体的说话动画（UIPulseScale / UISwing）
-
-        protected PetSpeechLibrary Lib
-        {
-            get
-            {
-                if (library != null) return library;
-                // 回退到全局实例是跨宠物串音的元凶，必须让它显眼
-                Debug.LogError($"[{name}] library 未绑定，退回到全局 PetSpeechLibrary.Instance（很可能播成别人的音频）", this);
-                return PetSpeechLibrary.Instance;
-            }
-        }
-
-        protected virtual void Awake()
-        {
-            ResolveOwnComponents();
-            _anim = FindAnim();
-
-            if (clickButton == null) clickButton = FindClickButton();
-            if (clickButton == null)
-            {
-                Debug.LogWarning($"[{name}] 没找到宠物本体的 Button，点击不会说话");
-                return;
-            }
-            clickButton.onClick.AddListener(HandleClicked);
-        }
-
-        /// <summary>找自己层级下的说话动画组件（实现 IPetAnim 的那个）</summary>
-        private IPetAnim FindAnim()
-        {
-            foreach (var mb in GetComponentsInChildren<MonoBehaviour>(true))
-            {
-                if (mb is IPetAnim anim) return anim;
-            }
-            return null;
-        }
-
-        /// <summary>
-        /// 强制使用"自己层级下"的语音库和气泡。
-        /// 场景里只要有一处引用拖成了别的宠物的，就会出现"点 A 播 B 的音频、字幕也串台"，
-        /// 这里直接纠正并大声报错。
-        /// </summary>
-        private void ResolveOwnComponents()
-        {
-            var ownLib = GetComponentInChildren<PetSpeechLibrary>(true);
-            if (ownLib != null && library != ownLib)
-            {
-                if (library != null)
-                    Debug.LogError($"[{name}] library 指向了不属于自己的库「{library.name}」，已强制改用自身的「{ownLib.name}」", this);
-                library = ownLib;
-            }
-
-            var ownBubble = GetComponentInChildren<PetSpeechBubble>(true);
-            if (ownBubble != null && speechBubble != ownBubble)
-            {
-                if (speechBubble != null)
-                    Debug.LogError($"[{name}] speechBubble 指向了不属于自己的气泡「{speechBubble.name}」，已强制改用自身的「{ownBubble.name}」", this);
-                speechBubble = ownBubble;
-            }
-        }
-
-        /// <summary>在子物体里找宠物本体的按钮；气泡上的 Button 不算</summary>
-        private Button FindClickButton()
-        {
-            foreach (var b in GetComponentsInChildren<Button>(true))
-            {
-                if (b.GetComponent<PetSpeechBubble>() != null) continue;
-                return b;
-            }
-            return null;
-        }
-
-        public virtual void Speak(int speechId)
-        {
-            if (IsSpeaking) return;
-            if (audioPlayer == null || speechBubble == null)
-            {
-                Debug.LogWarning($"[{name}] audioPlayer / speechBubble 未绑定");
-                return;
-            }
-            if (Lib == null || !Lib.TryGet(speechId, out var entry, out var clip) || clip == null)
-            {
-                Debug.LogWarning($"[{name}] 无法播放 speechId={speechId}");
-                return;
-            }
-
-            IsSpeaking = true;
-            _lastSpokenId = speechId;
-
-            var usedLib = Lib;
-            string libOwner = usedLib.transform.parent != null ? usedLib.transform.parent.name : usedLib.name;
-            Debug.Log($"[{name}] 播放 id={speechId} 字幕=\"{entry.label}\" 音频={clip.name} 来自库={libOwner}", this);
-
-            float duration = audioPlayer.Play(clip);          // 真实时长
-
-            // 动画和音频同长：说话期间一直播，音频结束前收尾
-            _anim?.PlayFor(duration);
-
-            float strength = 1.2f;                            // 可后续从 entry 扩展
-            float fadeOut  = Mathf.Min(0.2f, duration * 0.25f);// 短音频保护
-            speechBubble.Show(entry.label, duration, strength, fadeOut);
-
-            StartCoroutine(EndSpeakingWhenAudioDone());
-        }
-
-        private IEnumerator EndSpeakingWhenAudioDone()
-        {
-            // 比 WaitForSeconds(clip.length) 更稳：音频被打断/暂停都能正确结束
-            yield return new WaitUntil(() => !audioPlayer.IsPlaying);
-            IsSpeaking = false;
-        }
-
-        /// <summary>点击：从当前角色自己的语音库里随机抽一条（不会连着两次播同一条）</summary>
-        protected virtual void HandleClicked()
-        {
-            if (IsSpeaking) return;
-
-            var lib = Lib;
-            if (lib == null)
-            {
-                Debug.LogWarning($"[{name}] 没有可用的语音库", this);
-                return;
-            }
-
-            int id = lib.GetRandomId(_lastSpokenId);
-            if (id < 0)
-            {
-                Debug.LogWarning($"[{name}] 语音库里没有可播放的音频", this);
-                return;
-            }
-
-            Speak(id);
-        }
-        
+        ResolveDependencies();
     }
 
-    /// <summary>宠物本体的说话动画。UIPulseScale / UISwing 都实现它，PetBase 按音频时长统一驱动。</summary>
-    public interface IPetAnim
+    // ------------------------------------------------------------------ 对外行为
+
+    /// <summary>按洗牌袋说下一句（点击默认走这里，一轮内每条都会轮到）</summary>
+    public void SaySomething()
     {
-        void PlayFor(float duration);
+        if (IsSpeaking) return;
+
+        if (library == null)
+        {
+            Debug.LogError($"[{name}] 没有语音库，无法说话", this);
+            return;
+        }
+
+        int id = library.NextId();
+        if (id < 0)
+        {
+            Debug.LogWarning($"[{name}] 语音库里没有可播放的音频", this);
+            return;
+        }
+
+        Speak(id);
     }
 
-    public interface IClickable
+    /// <summary>说指定的某一句；播放期间再次调用会被忽略</summary>
+    public void Speak(int speechId)
     {
-        void OnPetClicked();
+        if (IsSpeaking) return;
+
+        if (library == null || audioPlayer == null || speechBubble == null)
+        {
+            Debug.LogError($"[{name}] 依赖不完整（library / audioPlayer / speechBubble），无法说话", this);
+            return;
+        }
+
+        if (!library.TryGet(speechId, out var entry, out var clip) || clip == null)
+        {
+            Debug.LogWarning($"[{name}] 无法播放 speechId={speechId}", this);
+            return;
+        }
+
+        IsSpeaking = true;
+
+        float duration = audioPlayer.Play(clip);   // 真实时长，动画和气泡都以它为准
+        _anim?.PlayFor(duration);
+        speechBubble.Show(entry.label, duration);
+
+        if (verboseLog)
+            Debug.Log($"[{name}] 播放 id={speechId} \"{entry.label}\" 音频={clip.name} {duration:F2}s", this);
+
+        StartCoroutine(WaitUntilAudioEnds());
     }
 
-    public interface ISpeakable
+    /// <summary>只播说话动画（空格键那种待机动作也走这里）</summary>
+    public void PlayAnim(float duration) => _anim?.PlayFor(duration);
+
+    // ------------------------------------------------------------------ 内部
+
+    private IEnumerator WaitUntilAudioEnds()
     {
-        void Speak(int speechId);   // 用 id 引用语音库
-        bool IsSpeaking { get; }
+        // 用 isPlaying 而不是 WaitForSeconds：音频被打断或暂停时也能正确结束
+        yield return new WaitUntil(() => audioPlayer == null || !audioPlayer.IsPlaying);
+        IsSpeaking = false;
     }
-    [Serializable]
-    public class PetSpeechEntry
+
+    /// <summary>
+    /// 把依赖统一解析成"自己层级下的那一份"。
+    /// 引用一旦被拖成别的宠物的，这里当场报错并纠正，而不是静默串台。
+    /// </summary>
+    private void ResolveDependencies()
     {
-        public int id;
-        public string label;
-        public string file;
-        public float duration;
+        library = OwnOnly(library, nameof(library));
+        speechBubble = OwnOnly(speechBubble, nameof(speechBubble));
+        audioPlayer = OwnOrCreate(audioPlayer, nameof(audioPlayer));
+
+        if (clickButton == null) clickButton = FindClickButton();
+        if (clickButton != null) clickButton.onClick.AddListener(SaySomething);
+        else Debug.LogWarning($"[{name}] 没找到可点击的 Button，点击不会说话", this);
+
+        _anim = FindInterface<IPetAnim>();
+
+        if (library == null) Debug.LogError($"[{name}] 层级下缺少 PetSpeechLibrary", this);
+        if (speechBubble == null) Debug.LogError($"[{name}] 层级下缺少 PetSpeechBubble", this);
     }
+
+    /// <summary>只接受自己层级下的组件；指向外部则报错并丢弃</summary>
+    private T OwnOnly<T>(T assigned, string fieldName) where T : Component
+    {
+        var own = GetComponentInChildren<T>(true);
+        if (own != null) return own;
+
+        if (assigned != null)
+            Debug.LogError($"[{name}] {fieldName} 指向了不属于自己的「{assigned.name}」，已忽略", this);
+        return null;
+    }
+
+    /// <summary>自己层级下没有就现场创建一份——音频输出不应该三只宠物共用</summary>
+    private T OwnOrCreate<T>(T assigned, string fieldName) where T : Component
+    {
+        var own = GetComponentInChildren<T>(true);
+        if (own != null) return own;
+
+        if (assigned != null && verboseLog)
+            Debug.Log($"[{name}] {fieldName} 指向的是外部组件「{assigned.name}」，已改为自带一份，避免互相打断", this);
+        return gameObject.AddComponent<T>();
+    }
+
+    /// <summary>按接口找组件（GetComponentInChildren 不支持接口，只能遍历）</summary>
+    private T FindInterface<T>() where T : class
+    {
+        foreach (var behaviour in GetComponentsInChildren<MonoBehaviour>(true))
+            if (behaviour is T match) return match;
+        return null;
+    }
+
+    /// <summary>找宠物本体上的按钮：气泡自己的 Button 不算</summary>
+    private Button FindClickButton()
+    {
+        foreach (var button in GetComponentsInChildren<Button>(true))
+            if (button.GetComponent<PetSpeechBubble>() == null) return button;
+        return null;
+    }
+}

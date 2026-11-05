@@ -1,53 +1,34 @@
-using UnityEngine;
 using DG.Tweening;
+using UnityEngine;
 
-public class UIPulseScale : MonoBehaviour, IPetAnim
+/// <summary>脉冲缩放：说话期间 Y 轴反复压扁，音频结束时平滑回位。</summary>
+public class UIPulseScale : PetAnimBase
 {
-    [SerializeField] private RectTransform target;
-    [SerializeField] private float minScaleY = 0.5f;      // Y轴最小缩放比例
-    [SerializeField] private float oneWayDuration = 0.3f;  // 单程时间
+    [SerializeField] private float minScaleY = 0.5f;   // Y 轴最小缩放比例
 
-    private Tween pulseTween;
-    private Tween delayTween;
-    private Vector3 originalScale;
-    private bool hasPlayed;
+    private Vector3 _originalScale;
+    private bool _captured;
 
-    /// <summary>说话时按音频时长播放（PetBase 统一调用）</summary>
-    public void PlayFor(float duration) => PlayPulse(duration);
-
-    /// <summary>播放脉冲缩放，totalDuration 秒后停止并恢复原大小</summary>
-    public void PlayPulse(float totalDuration)
+    protected override Tween CreateLoop()
     {
-        StopPulse();
+        // PlayFor 进来时已经 StopAnim 归位过，所以这里取到的就是基准缩放
+        _originalScale = target.localScale;
+        _captured = true;
 
-        originalScale = target.localScale;
-        hasPlayed = true;
-        float minY = originalScale.y * minScaleY;
-
-        pulseTween = target
-            .DOScaleY(minY, oneWayDuration)
+        return target
+            .DOScaleY(_originalScale.y * minScaleY, oneWayDuration)
             .SetEase(Ease.Linear)
             .SetLoops(-1, LoopType.Yoyo);
-
-        delayTween = DOVirtual.DelayedCall(totalDuration, () =>
-        {
-            pulseTween?.Kill();
-            pulseTween = null;
-            target.DOScaleY(originalScale.y, 0.1f)
-                  .SetEase(Ease.OutQuad)
-                  .OnComplete(() => target.localScale = originalScale);
-        });
     }
 
-    public void StopPulse()
+    protected override Tween CreateRestore()
     {
-        pulseTween?.Kill();
-        delayTween?.Kill();
-        pulseTween = null;
-        delayTween = null;
-        if (hasPlayed) target.localScale = originalScale;
+        if (target == null) return null;
+        return target.DOScaleY(_originalScale.y, restoreDuration).SetEase(Ease.OutQuad);
     }
 
-    private void OnDestroy() => StopPulse();
-    
+    protected override void SnapBack()
+    {
+        if (_captured && target != null) target.localScale = _originalScale;
+    }
 }

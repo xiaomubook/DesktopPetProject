@@ -1,56 +1,39 @@
-using UnityEngine;
 using DG.Tweening;
+using UnityEngine;
 
-public class UISwing : MonoBehaviour, IPetAnim
+/// <summary>左右摇摆：说话期间来回摆，音频结束时平滑回位。</summary>
+public class UISwing : PetAnimBase
 {
-    [SerializeField] private RectTransform target;
-    [SerializeField] private float maxAngle = 15f;         // 左右各摆角度
-    [SerializeField] private float oneWayDuration = 0.3f;  // 单程时间
+    [SerializeField] private float maxAngle = 15f;   // 左右各摆多少度
 
-    private Tween swingTween;
-    private Tween delayTween;
-    private Vector3 originalEuler;
-    private bool hasPlayed;
+    private Vector3 _originalEuler;
+    private bool _captured;
 
-    /// <summary>说话时按音频时长播放（PetBase 统一调用）</summary>
-    public void PlayFor(float duration) => PlaySwing(duration);
-
-    public void PlaySwing(float totalDuration)
+    protected override Tween CreateLoop()
     {
-        StopSwing();
+        // PlayFor 进来时已经 StopAnim 归位过，所以这里取到的就是基准角度
+        _originalEuler = target.localEulerAngles;
+        _captured = true;
 
-        originalEuler = target.localEulerAngles;
-        hasPlayed = true;
+        Vector3 left = new Vector3(_originalEuler.x, _originalEuler.y, _originalEuler.z - maxAngle);
+        Vector3 right = new Vector3(_originalEuler.x, _originalEuler.y, _originalEuler.z + maxAngle);
 
-        Vector3 left = new Vector3(originalEuler.x, originalEuler.y, originalEuler.z - maxAngle);
-        Vector3 right = new Vector3(originalEuler.x, originalEuler.y, originalEuler.z + maxAngle);
-
-        // 关键：循环必须设置在 Sequence 上
-        swingTween = DOTween.Sequence()
+        // 循环必须设在 Sequence 上，设在单个 Append 里只会重复那一段
+        return DOTween.Sequence()
             .Append(target.DOLocalRotate(left, oneWayDuration).SetEase(Ease.InOutSine))
             .Append(target.DOLocalRotate(right, oneWayDuration * 2f).SetEase(Ease.InOutSine))
-            .Append(target.DOLocalRotate(originalEuler, oneWayDuration).SetEase(Ease.InOutSine))
+            .Append(target.DOLocalRotate(_originalEuler, oneWayDuration).SetEase(Ease.InOutSine))
             .SetLoops(-1, LoopType.Restart);
-
-        delayTween = DOVirtual.DelayedCall(totalDuration, () =>
-        {
-            swingTween?.Kill();
-            swingTween = null;
-            target.DOLocalRotate(originalEuler, 0.1f)
-                  .SetEase(Ease.OutQuad)
-                  .OnComplete(() => target.localEulerAngles = originalEuler);
-        });
     }
 
-    public void StopSwing()
+    protected override Tween CreateRestore()
     {
-        swingTween?.Kill();
-        delayTween?.Kill();
-        swingTween = null;
-        delayTween = null;
-        if (hasPlayed) target.localEulerAngles = originalEuler;
+        if (target == null) return null;
+        return target.DOLocalRotate(_originalEuler, restoreDuration).SetEase(Ease.OutQuad);
     }
 
-    private void OnDestroy() => StopSwing();
-    
+    protected override void SnapBack()
+    {
+        if (_captured && target != null) target.localEulerAngles = _originalEuler;
+    }
 }

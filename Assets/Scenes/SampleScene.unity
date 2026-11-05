@@ -209,8 +209,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   target: {fileID: 2234136}
-  minScaleY: 0.9
   oneWayDuration: 0.2
+  restoreDuration: 0.1
+  minScaleY: 0.9
 --- !u!114 &2234140
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -305,6 +306,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   jsonFile: {fileID: 4900000, guid: 5630d4c922f93a540926b74ad3cc3f17, type: 3}
   audioFolder: ShaolanClips
+  verboseLog: 0
 --- !u!1 &28885777
 GameObject:
   m_ObjectHideFlags: 0
@@ -325,7 +327,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &28885778
 RectTransform:
   m_ObjectHideFlags: 0
@@ -455,6 +457,9 @@ MonoBehaviour:
   group: {fileID: 28885782}
   label: {fileID: 28885779}
   bubbleRoot: {fileID: 28885778}
+  appearDuration: 0.25
+  popStrength: 1.2
+  maxFadeOut: 0.2
 --- !u!1 &121485526
 GameObject:
   m_ObjectHideFlags: 0
@@ -475,7 +480,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &121485527
 RectTransform:
   m_ObjectHideFlags: 0
@@ -605,6 +610,9 @@ MonoBehaviour:
   group: {fileID: 121485531}
   label: {fileID: 121485528}
   bubbleRoot: {fileID: 121485527}
+  appearDuration: 0.25
+  popStrength: 1.2
+  maxFadeOut: 0.2
 --- !u!1 &275527265
 GameObject:
   m_ObjectHideFlags: 0
@@ -731,7 +739,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4999531f310dcda43bd28843f9a6bed1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  source: {fileID: 275527266}
+  volume: 1
 --- !u!4 &275527268
 Transform:
   m_ObjectHideFlags: 0
@@ -1065,6 +1073,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   jsonFile: {fileID: 4900000, guid: d51bd456b92290a47939658d2ffec30d, type: 3}
   audioFolder: SungeClips
+  verboseLog: 0
 --- !u!1 &705507993
 GameObject:
   m_ObjectHideFlags: 0
@@ -1247,7 +1256,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &824938066
 RectTransform:
   m_ObjectHideFlags: 0
@@ -1377,6 +1386,9 @@ MonoBehaviour:
   group: {fileID: 824938070}
   label: {fileID: 824938067}
   bubbleRoot: {fileID: 824938066}
+  appearDuration: 0.25
+  popStrength: 1.2
+  maxFadeOut: 0.2
 --- !u!1 &880714434
 GameObject:
   m_ObjectHideFlags: 0
@@ -1568,8 +1580,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   target: {fileID: 928788192}
-  minScaleY: 0.9
   oneWayDuration: 0.2
+  restoreDuration: 0.1
+  minScaleY: 0.9
 --- !u!114 &928788196
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1793,8 +1806,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   target: {fileID: 1047912203}
-  maxAngle: 10
   oneWayDuration: 0.1
+  restoreDuration: 0.1
+  maxAngle: 5
 --- !u!114 &1047912207
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1886,6 +1900,7 @@ MonoBehaviour:
   fenggePet: {fileID: 2234136}
   shaolanPet: {fileID: 928788192}
   sungePet: {fileID: 1047912203}
+  spaceAnimDuration: 5
 --- !u!1 &1079657323
 GameObject:
   m_ObjectHideFlags: 0
@@ -1937,11 +1952,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0cca58b61f838fd4f9bdc7d9898f8c0d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  library: {fileID: 1861473724}
   audioPlayer: {fileID: 275527267}
   speechBubble: {fileID: 121485532}
-  library: {fileID: 1861473724}
   clickButton: {fileID: 2234140}
-  clickSpeechId: 1
+  verboseLog: 0
 --- !u!1 &1161505681
 GameObject:
   m_ObjectHideFlags: 0
@@ -2127,11 +2142,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0605a276d47c7a540a4c60d84141d11e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  library: {fileID: 19178582}
   audioPlayer: {fileID: 275527267}
   speechBubble: {fileID: 28885783}
-  library: {fileID: 19178582}
   clickButton: {fileID: 928788196}
-  clickSpeechId: 7
+  verboseLog: 0
 --- !u!1 &1538948010
 GameObject:
   m_ObjectHideFlags: 0
@@ -2183,11 +2198,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cf4906ce952647b4dbae50b9f6d1ca58, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  library: {fileID: 532851306}
   audioPlayer: {fileID: 275527267}
   speechBubble: {fileID: 824938071}
-  library: {fileID: 532851306}
   clickButton: {fileID: 1047912207}
-  clickSpeechId: 11
+  verboseLog: 0
 --- !u!1 &1861473722
 GameObject:
   m_ObjectHideFlags: 0
@@ -2237,7 +2252,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   jsonFile: {fileID: 4900000, guid: ac35080bc1af7e94f93bfcddfce7bfac, type: 3}
-  audioFolder: FenggeClip
+  audioFolder: FenggeClips
+  verboseLog: 0
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

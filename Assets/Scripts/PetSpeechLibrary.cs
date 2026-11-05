@@ -1,160 +1,212 @@
-using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 
+/// <summary>
+/// 一个角色的语音库：台词表（json）+ Resources 下的音频。
+///
+/// 设计要点：每只宠物各挂一个实例，数据互不共享。这里刻意 **不提供全局单例**——
+/// 语音库是"有归属"的数据，一旦做成单例，就会诱导调用方去偷用别人的库。
+/// 需要哪份数据，就由 PetBase 通过自身层级下的引用拿到。
+/// </summary>
 public class PetSpeechLibrary : MonoBehaviour
 {
-    public static PetSpeechLibrary Instance { get; private set; }
+    [Header("数据源")]
+    [Tooltip("台词表 json：裸数组 [{id,label,file,duration}]，或已包好的 {\"items\":[...]}")]
+    [SerializeField] private TextAsset jsonFile;
 
-    [SerializeField] private TextAsset jsonFile;        // 拖入 json
-    [SerializeField] private string audioFolder; // Resources 下子目录
+    [Tooltip("音频目录，相对 Assets/Resources，例如 FenggeClip")]
+    [SerializeField] private string audioFolder;
+
+    [Tooltip("文案（label）完全相同的条目只保留第一条。同一句话录了多遍时，勾上可以避免玩家听到“重复的台词”")]
+    [SerializeField] private bool dedupeSameLabel = true;
+
+    [Header("调试")]
+    [Tooltip("勾选后打印加载汇总（错误和警告不受影响，始终输出）")]
+    [SerializeField] private bool verboseLog;
 
     private readonly Dictionary<int, PetSpeechEntry> _entries = new();
     private readonly Dictionary<int, AudioClip> _clips = new();
-    private readonly List<int> _playableIds = new();   // 真正有音频、可以随机到的 id
+    private readonly List<int> _playableIds = new();
+    private ShuffleBag<int> _bag;
+    private bool _built;
 
-    private void Awake()
+    /// <summary>真正加载到音频、可以播放的条数</summary>
+    public int PlayableCount => _playableIds.Count;
+
+    /// <summary>至少有一条能播</summary>
+    public bool IsReady => _playableIds.Count > 0;
+
+    private void Awake() => EnsureBuilt();
+
+    /// <summary>取某条台词及其音频；台词存在但音频缺失时 clip 为 null</summary>
+    public bool TryGet(int id, out PetSpeechEntry entry, out AudioClip clip)
     {
-        // 只记录一个兜底单例，绝不再销毁其它实例：
-        // 三个宠物各自挂一份语音库，一旦销毁，它们的 library 引用会变成“假 null”，
-        // 从而全部回退到同一个 Instance，点谁都会播出同一个库的音频。
-        if (Instance == null) Instance = this;
-        Load();
+        EnsureBuilt();
+        clip = _clips.TryGetValue(id, out var c) ? c : null;
+        return _entries.TryGetValue(id, out entry);
     }
 
-    private void Load()
+    /// <summary>
+    /// 按洗牌袋取下一句：一轮内每条都会轮到一次，播完自动重洗。
+    /// 没有可用音频时返回 -1。
+    /// </summary>
+    public int NextId()
     {
+        EnsureBuilt();
+        if (_bag == null) return -1;
+
+        int id = _bag.Draw();
+
+        if (verboseLog && _entries.TryGetValue(id, out var entry))
+            Debug.Log($"[{name}] 洗牌袋剩余 {_bag.Remaining}/{_playableIds.Count} → id={id} \"{entry.label}\"", this);
+
+        return id;
+    }
+
+    // ---------------------------------------------------------------- 加载
+
+    /// <summary>懒加载：即使所在物体一开始是隐藏的，第一次查询时也能拿到数据</summary>
+    private void EnsureBuilt()
+    {
+        if (_built) return;
+        _built = true;
+        Build();
+    }
+
+    private void Build()
+    {
+        _entries.Clear();
+        _clips.Clear();
+        _playableIds.Clear();
+
         if (jsonFile == null)
         {
-            Debug.LogError($"[SpeechLibrary] {name} 的 jsonFile 未赋值，请在 Inspector 里拖入 clips.json", this);
+            Debug.LogError($"[{name}] 未指定 jsonFile", this);
             return;
         }
 
-        // 三个库的名字都叫 Library，日志里带上父物体（宠物名）才分得清
-        string owner = transform.parent != null ? transform.parent.name : name;
+        if (!TryParseEntries(out var items)) return;
 
-        // JsonUtility 的根必须是一个对象，不能是数组：套一层 {"items":[...]} 再用包装类解析
-        JsonWrapper wrapper;
+        var seenLabels = new HashSet<string>();
+        int dropped = 0;
+
+        foreach (var item in items)
+        {
+            if (item == null) continue;
+
+            // 同一句文案录了多遍时，只留第一条，避免洗牌袋一轮里出现"同一句话两次"
+            if (dedupeSameLabel && !string.IsNullOrWhiteSpace(item.label))
+            {
+                if (!seenLabels.Add(item.label.Trim()))
+                {
+                    dropped++;
+                    continue;
+                }
+            }
+
+            _entries[item.id] = item;
+        }
+
+        if (dropped > 0)
+            Debug.LogWarning($"[{name}] 有 {dropped} 条台词文案重复，已忽略；想保留它们就把 dedupeSameLabel 关掉", this);
+
+        if (_entries.Count == 0)
+        {
+            Debug.LogError($"[{name}] {jsonFile.name} 里没有有效条目", this);
+            return;
+        }
+
+        LoadClips();
+
+        // 洗牌袋只依赖"可播放 id 列表"，加载完再建，保证不会抽到缺音频的条目
+        _bag = _playableIds.Count > 0 ? new ShuffleBag<int>(_playableIds) : null;
+
+        if (verboseLog)
+            Debug.Log($"[{name}] 台词 {_entries.Count} 条 / 可播放 {_clips.Count} 条（Resources/{audioFolder}）", this);
+
+        if (_clips.Count == 0)
+            Debug.LogError($"[{name}] 没能加载到任何音频，检查 Assets/Resources/{audioFolder} 是否存在、文件名是否与 json 对得上", this);
+        else if (_clips.Count < _entries.Count)
+            Debug.LogWarning($"[{name}] 有 {_entries.Count - _clips.Count} 条台词缺音频，对应 id 无法播放", this);
+    }
+
+    private bool TryParseEntries(out PetSpeechEntry[] items)
+    {
+        items = null;
         try
         {
-            wrapper = JsonUtility.FromJson<JsonWrapper>(WrapArray(jsonFile.text));
+            // JsonUtility 的根类型必须是对象，不能是数组，所以先包一层 {"items":[...]}
+            items = JsonUtility.FromJson<JsonWrapper>(WrapArray(jsonFile.text))?.items;
         }
         catch (System.Exception ex)
         {
-            Debug.LogError($"[SpeechLibrary] 解析 {jsonFile.name} 失败：{ex.Message}\n请检查 JSON 是否为数组 [] 或 {{\"items\":[...]}}");
-            return;
+            Debug.LogError($"[{name}] 解析 {jsonFile.name} 失败：{ex.Message}\n" +
+                           "json 应是 [{id,label,file,duration}, ...] 或 {\"items\":[...]}", this);
+            return false;
         }
 
-        var arr = wrapper?.items;
-        if (arr == null || arr.Length == 0)
+        if (items == null || items.Length == 0)
         {
-            Debug.LogError($"[SpeechLibrary] {jsonFile.name} 里没有解析到任何条目");
-            return;
+            Debug.LogError($"[{name}] {jsonFile.name} 里没有解析到任何条目", this);
+            return false;
         }
-
-        foreach (var e in arr)
-        {
-            if (e == null) continue;
-            _entries[e.id] = e;
-        }
-
-        int loaded = LoadClips(audioFolder, owner);
-
-        // 兜底：folder 名写错（多写/少写一个 s）时，自动试另一种拼法，并在日志里点名
-        if (loaded == 0 && !string.IsNullOrEmpty(audioFolder))
-        {
-            string alt = audioFolder.EndsWith("s")
-                ? audioFolder.Substring(0, audioFolder.Length - 1)
-                : audioFolder + "s";
-            int altLoaded = LoadClips(alt, owner);
-            if (altLoaded > 0)
-            {
-                Debug.LogWarning($"[Library] {owner} 的 folder=\"{audioFolder}\" 加载不到音频，已自动改用 \"{alt}\"。请把 Inspector 里的值改成 {alt}", this);
-                audioFolder = alt;
-                loaded = altLoaded;
-            }
-        }
-
-        // 一眼看出这个库到底加载了什么，跨宠物串音的排查全靠它
-        Debug.Log($"[Library] {owner}/{name} | json={jsonFile.name} | folder={audioFolder} | 条目={_entries.Count} | 音频={_clips.Count}", this);
-        if (_clips.Count == 0)
-            Debug.LogError($"[Library] {owner}/{name} 一个音频都没加载到，检查 Resources/{audioFolder} 是否存在、文件名是否对得上", this);
+        return true;
     }
 
-    private int LoadClips(string folder, string owner)
+    private void LoadClips()
     {
-        _clips.Clear();
-        _playableIds.Clear();
-        if (string.IsNullOrEmpty(folder)) return 0;
+        if (string.IsNullOrEmpty(audioFolder))
+        {
+            Debug.LogError($"[{name}] 未指定 audioFolder", this);
+            return;
+        }
 
         int missing = 0;
-        foreach (var e in _entries.Values)
+        int durationMismatch = 0;
+
+        foreach (var entry in _entries.Values)
         {
-            // 按文件名去 Resources 加载
-            string path = $"{folder}/{Path.GetFileNameWithoutExtension(e.file)}";
+            string path = $"{audioFolder}/{Path.GetFileNameWithoutExtension(entry.file)}";
             var clip = Resources.Load<AudioClip>(path);
             if (clip == null)
             {
                 missing++;
+                if (verboseLog) Debug.LogWarning($"[{name}] 缺少音频 Resources/{path}", this);
                 continue;
             }
 
-            _clips[e.id] = clip;
-            _playableIds.Add(e.id);
+            _clips[entry.id] = clip;
+            _playableIds.Add(entry.id);
 
-            // json 里记了每段的真实时长：文件被换成别人家的音频时，时长会对不上
-            if (e.duration > 0.05f && Mathf.Abs(clip.length - e.duration) > 0.1f)
-                Debug.LogWarning($"[Library] {owner} id={e.id} 音频实际 {clip.length:F2}s，json 记录 {e.duration:F2}s，{path} 很可能不是这一段", this);
+            // json 里记了每段的真实时长，可以当数据完整性校验用
+            if (entry.duration > 0.05f && Mathf.Abs(clip.length - entry.duration) > 0.1f)
+            {
+                durationMismatch++;
+                if (verboseLog)
+                    Debug.LogWarning($"[{name}] id={entry.id} 音频 {clip.length:F2}s ≠ json {entry.duration:F2}s，Resources/{path} 可能不是这一段", this);
+            }
         }
+
         if (missing > 0)
-            Debug.LogWarning($"[Library] {owner} 在 Resources/{folder} 下有 {missing} 条音频没找到", this);
-        return _clips.Count;
+            Debug.LogWarning($"[{name}] Resources/{audioFolder} 下缺 {missing} 条音频", this);
+        if (durationMismatch > 0)
+            Debug.LogWarning($"[{name}] 有 {durationMismatch} 条音频时长与 json 记录不符，检查是否放错文件", this);
     }
 
-    /// <summary>当前角色可播放的语音条数</summary>
-    public int PlayableCount => _playableIds.Count;
+    // ---------------------------------------------------------------- json 结构
 
-    /// <summary>
-    /// 随机抽一条可播放的 id；avoid 用于避免连续重复（传上一次播过的 id）。
-    /// 没有可用音频时返回 -1。
-    /// </summary>
-    public int GetRandomId(int avoid = -1)
-    {
-        int n = _playableIds.Count;
-        if (n == 0) return -1;
-        if (n == 1) return _playableIds[0];
-
-        int start = Random.Range(0, n);
-        if (_playableIds[start] != avoid) return _playableIds[start];
-
-        // 正好抽到上一句：顺移一格，既不会连续重复，分布也仍然均匀
-        return _playableIds[(start + 1) % n];
-    }
-
-    public bool TryGet(int id, out PetSpeechEntry entry, out AudioClip clip)
-    {
-        bool ok = _entries.TryGetValue(id, out entry);
-        _clips.TryGetValue(id, out clip);
-        return ok;
-    }
-
-    public PetSpeechEntry GetEntry(int id) =>
-        _entries.TryGetValue(id, out var e) ? e : null;
-
-    // JsonUtility 根对象必须是对象类型，用它来承载顶层数组
     [System.Serializable]
     private class JsonWrapper
     {
         public PetSpeechEntry[] items;
     }
 
-    // JsonUtility 顶层数组包裹；若文件本身已是 {"items":[...]} 则原样使用
+    /// <summary>统一成 {"items":[...]}；文件本身已是对象时原样使用</summary>
     private static string WrapArray(string raw)
     {
-        // 去掉 BOM 和首尾空白，避免 JsonUtility 解析失败
+        // 去掉 BOM 和首尾空白，编辑器另存为 UTF-8 with BOM 也能读
         string s = raw.Trim().TrimStart('\uFEFF').Trim();
-        if (s.StartsWith("{")) return s;
-        return "{\"items\":" + s + "}";
+        return s.StartsWith("{") ? s : "{\"items\":" + s + "}";
     }
 }
